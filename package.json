@@ -1,0 +1,8 @@
+{
+  "name": "cezi-engine",
+  "version": "0.1.0",
+  "description": "测字引擎子件（字库直查表 2786 条 + 测字秘牒十法/六法 + 拆字部汇考歌诀 + 认字测八十一字 + 字触六卷实例）",
+  "main": "main.js",
+  "author": "wang-er-1-2003",
+  "license": "MIT"
+}

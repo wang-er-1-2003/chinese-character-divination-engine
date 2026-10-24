@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: MIT -->
+<!-- Copyright (c) 2026 wang-er-1-2003 -->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>测字引擎 · 传统测字术</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; scrollbar-width:thin; scrollbar-color:#4a3a68 transparent; }
+  html { color-scheme:dark; }
+  *::-webkit-scrollbar { width:8px; height:8px; }
+  *::-webkit-scrollbar-track { background:transparent; }
+  *::-webkit-scrollbar-thumb { background:linear-gradient(180deg,#4a3a68,#33264d); border-radius:4px; }
+  *::-webkit-scrollbar-thumb:hover { background:linear-gradient(180deg,#6c4fce,#5b3fb8); }
+  *::-webkit-scrollbar-corner { background:transparent; }
+  body { font-family:"Microsoft YaHei","Segoe UI",sans-serif; background:#1a1626; color:#e8e4f0; height:100vh; display:flex; flex-direction:column; }
+  header { padding:10px 18px; background:linear-gradient(90deg,#241d33,#2a2240); border-bottom:1px solid #3a2f55; display:flex; align-items:center; gap:14px; }
+  header h1 { font-size:17px; color:#c9b8f0; }
+  header .sub { font-size:12px; color:#8a7aa8; }
+  .wrap { flex:1; display:flex; min-height:0; }
+  /* 左：查字 + 结果 + 规则库 */
+  #board { flex:1.5; overflow:auto; padding:16px 18px; display:flex; flex-direction:column; gap:14px; }
+  #board::-webkit-scrollbar { width:0; height:0; }
+  /* 查字输入 */
+  #query-row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  #char-input { flex:1; min-width:180px; padding:10px 12px; font-size:20px; border-radius:8px; border:1px solid #4a3a68; background:#241d33; color:#f0e8ff; letter-spacing:2px; }
+  #char-input:focus { border-color:#8a6fd8; outline:none; box-shadow:0 0 0 2px rgba(138,111,216,.18); }
+  .btn { font-family:inherit; font-size:13px; padding:8px 16px; border-radius:6px; border:1px solid #4a3a68; background:#2a2240; color:#e8e4f0; cursor:pointer; transition:background .15s,border-color .15s; }
+  .btn:hover { border-color:#8a6fd8; background:#33264d; }
+  .btn.primary { background:#5b3fb8; border-color:#5b3fb8; font-weight:600; }
+  .btn.primary:hover { background:#6c4fce; }
+  .btn.ghost { background:transparent; }
+  select.btn { padding:8px 30px 8px 12px; appearance:auto; }
+  #query-hint { font-size:12px; color:#8a7aa8; }
+  /* 结果卡片 */
+  #results-title { font-size:14px; color:#b7a6d8; }
+  #results { display:flex; flex-direction:column; gap:10px; }
+  .hit-card { background:#241d33; border:1px solid #3a2f55; border-radius:8px; padding:12px 14px; cursor:pointer; transition:border-color .15s,transform .1s; }
+  .hit-card:hover { border-color:#8a6fd8; }
+  .hit-card:active { transform:scale(.995); }
+  .hit-card.selected { border-color:#f0c860; box-shadow:0 0 0 2px rgba(240,200,96,.25); }
+  .hit-head { display:flex; align-items:baseline; gap:10px; margin-bottom:6px; }
+  .hit-char { font-size:26px; font-weight:700; color:#f0e8ff; }
+  .hit-verdict { font-size:13px; color:#ffd9a0; font-weight:600; }
+  .hit-verdict.bad { color:#ff9d8a; }
+  .hit-verdict.mid { color:#c9c2f0; }
+  .hit-verdict.unknown { color:#a89ac2; }
+  .hit-src { font-size:11px; color:#7a6a98; }
+  .hit-orig { font-size:13px; color:#d8d0e8; line-height:1.6; margin:4px 0; }
+  .hit-bai { font-size:13px; color:#b7a6d8; line-height:1.6; }
+  .hit-tags { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+  .decomp-tree { font-size:12px; color:#b7a6d8; line-height:1.7; }
+  .decomp-tree .tnode { margin:2px 0; padding-left:10px; border-left:1px solid #3a2f55; }
+  .decomp-tree .tchildren { padding-left:14px; border-left:1px dashed #4a3a68; margin-left:6px; }
+  .decomp-tree .titem { margin:2px 0; }
+  .decomp-tree .titem.leaf { padding-left:10px; border-left:1px solid #3a2f55; }
+  .decomp-tree .k { color:#ffd9a0; font-weight:600; font-size:14px; }
+  #zihua-checks .check-item { font-size:12px; color:#b7a6d8; line-height:1.6; margin:3px 0; padding:5px 8px; background:#1f1a2e; border:1px solid #3a2f55; border-radius:5px; cursor:pointer; transition:background .15s,border-color .15s; }
+  #zihua-checks .check-item:hover { border-color:#8a6fd8; }
+  #zihua-checks .check-item.on { background:#3a2f55; border-color:#f0c860; color:#f0e8ff; }
+  #zihua-checks .check-item .k { color:#ffd9a0; }
+  .tag { font-size:11px; padding:2px 8px; border-radius:10px; background:#33264d; color:#a89ac2; border:1px solid #4a3a68; }
+  .tag.key { color:#ffd9a0; }
+  .miss-note { font-size:13px; color:#a89ac2; line-height:1.8; padding:10px 2px; }
+  /* 干支面板 */
+  .panel { background:#241d33; border:1px solid #3a2f55; border-radius:8px; padding:12px 14px; }
+  .panel h3 { font-size:13px; color:#c9b8f0; margin-bottom:8px; }
+  .gzl-row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .gz-badge { font-size:15px; font-weight:700; color:#ffd9a0; background:#33264d; border:1px solid #5b3fb8; border-radius:6px; padding:4px 12px; }
+  .gz-out { font-size:13px; color:#d8d0e8; line-height:1.7; margin-top:8px; }
+  .gz-out .lbl { color:#7a6a98; font-size:12px; }
+  /* 规则库 tab */
+  #rule-tabs { display:flex; gap:6px; flex-wrap:wrap; }
+  .rtab { font-size:12px; padding:6px 12px; border-radius:14px; border:1px solid #4a3a68; background:#2a2240; color:#b7a6d8; cursor:pointer; transition:background .15s,border-color .15s; }
+  .rtab:hover { border-color:#8a6fd8; }
+  .rtab.on { background:#5b3fb8; border-color:#5b3fb8; color:#fff; }
+  #rule-body { background:#241d33; border:1px solid #3a2f55; border-radius:8px; padding:12px 14px; }
+  #rule-body h4 { font-size:14px; color:#f0e8ff; margin-bottom:4px; }
+  #rule-body .src { font-size:11px; color:#7a6a98; margin-bottom:8px; }
+  #rule-body .sec { margin:8px 0; padding:8px 10px; background:#1f1a2e; border-radius:6px; cursor:pointer; }
+  #rule-body .sec:hover { border-color:#8a6fd8; }
+  #rule-body .sec .t { font-size:13px; color:#c9b8f0; font-weight:600; }
+  #rule-body .sec .t::before { content:"▸"; color:#7a6a98; margin-right:6px; font-size:11px; }
+  #rule-body .sec.open .t::before { content:"▾"; color:#ffd9a0; }
+  #rule-body .sec .c { font-size:12px; color:#8a7aa8; }
+  #rule-body .sec .body { font-size:12px; color:#b7a6d8; line-height:1.6; margin-top:4px; max-height:120px; overflow:auto; white-space:pre-wrap; }
+  #rule-body .sec.open .body { max-height:none; }
+  #rule-body .grid81 { display:flex; flex-wrap:wrap; gap:6px; }
+  #rule-body .grid81 .cell { width:44px; height:44px; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:600; background:#2a2240; border:1px solid #4a3a68; border-radius:6px; cursor:pointer; transition:background .15s,border-color .15s; }
+  #rule-body .grid81 .cell:hover { border-color:#8a6fd8; background:#33264d; }
+  #rule-body .item { font-size:12px; color:#b7a6d8; line-height:1.6; margin:3px 0; padding:5px 8px; background:#1f1a2e; border-radius:5px; cursor:pointer; transition:background .15s; }
+  #rule-body .item:hover { background:#2a2240; }
+  #rule-body .item .k { color:#ffd9a0; }
+  #rule-body .people-sec { margin:8px 0; padding:8px 10px; background:#1f1a2e; border-radius:6px; }
+  #rule-body .people-sec .lbl { font-size:12px; color:#c9b8f0; font-weight:600; }
+  #rule-body .chips { display:flex; flex-wrap:wrap; gap:6px; margin:6px 0; }
+  #rule-body .chip { font-size:12px; padding:3px 10px; border-radius:12px; background:#33264d; border:1px solid #4a3a68; color:#ffd9a0; cursor:pointer; transition:border-color .15s; }
+  #rule-body .chip:hover { border-color:#f0c860; }
+  #rule-search { width:100%; margin-bottom:10px; padding:7px 10px; border-radius:6px; border:1px solid #4a3a68; background:#1f1a2e; color:#e8e4f0; font-size:13px; }
+  #rule-search:focus { border-color:#8a6fd8; outline:none; box-shadow:0 0 0 2px rgba(138,111,216,.18); }
+  mark.rule-hit { background:#6c4fce; color:#fff; border-radius:2px; padding:0 1px; }
+  /* 右：详情 */
+  #side { width:520px; border-left:1px solid #3a2f55; display:flex; flex-direction:column; overflow:auto; }
+  #detail { flex:1; padding:14px 16px; overflow:auto; }
+  #detail h2 { font-size:16px; color:#f0e8ff; margin-bottom:4px; padding-bottom:6px; border-bottom:1px solid #3a2f55; }
+  #detail .meta { font-size:12px; color:#a89ac2; margin-bottom:10px; }
+  #detail h3 { font-size:13px; color:#c9b8f0; margin:10px 0 4px; }
+  #detail p { font-size:13px; line-height:1.7; color:#d8d0e8; white-space:pre-wrap; }
+  #detail .src { font-size:11px; color:#7a6a98; margin-bottom:8px; }
+  #detail .side-back { font-size:12px; color:#8a6fd8; cursor:pointer; margin-bottom:8px; user-select:none; }
+  #detail .side-back:hover { color:#f0c860; }
+  #detail .recent-item { font-size:12px; color:#c9b8f0; padding:4px 6px; margin:2px 0; border-radius:4px; cursor:pointer; background:#1a1428; }
+  #detail .recent-item:hover { background:#2a2140; color:#f0e8ff; }
+  #detail .part-w { display:inline-block; font-size:15px; color:#ffd9a0; margin:2px 3px; padding:2px 6px; background:#1a1428; border:1px solid #3a2f55; border-radius:5px; cursor:pointer; }
+  #detail .part-w:hover { border-color:#f0c860; color:#f0e8ff; }
+  #detail .part-w .tag { font-size:10px; color:#7a6a98; margin-left:2px; }
+  #empty-hint { color:#8a7aa8; font-size:13px; line-height:1.8; }
+
+</style>
+</head>
+<body>
+<header>
+  <h1>测字引擎 · 传统测字术</h1>
+  <span class="sub">数据：字库直查表 2786 条 ·《测字秘牒》十法/六法/取格 ·《拆字部汇考》歌诀 ·《认字测》81 字 ·《字触》六卷</span>
+</header>
+<div class="wrap">
+  <div id="board">
+    <div id="query-row">
+      <input id="char-input" type="text" placeholder="写一个字（或一句话），如：天、平安、考试…" maxlength="12">
+      <button class="btn primary" id="btn-query">测</button>
+      <button class="btn" id="btn-tuilian" title="字形拆解 + 拆法变换 + 部件断语推演">拆演</button>
+      <button class="btn ghost" id="btn-random">随机字</button>
+      <span id="query-hint">支持单字与多字；未入字库的字会查《测字秘牒》取格/杂占</span>
+    </div>
+    <div class="panel" id="gz-panel">
+      <h3>后天时方 · 六十甲子吉凶（写测时的时辰参考）</h3>
+      <div class="gzl-row">
+        <select class="btn" id="gz-select"><option value="">选择时辰干支…</option></select>
+        <span class="gz-badge" id="gz-badge">—</span>
+      </div>
+      <div class="gz-out" id="gz-out"></div>
+    </div>
+    <div id="results-title"></div>
+    <div id="results"></div>
+    <div class="panel">
+      <h3>规则库 / 古籍</h3>
+      <div id="rule-tabs">
+        <span class="rtab on" data-rt="midie">秘牒十法·六法</span>
+        <span class="rtab" data-rt="quge">秘牒取格·杂占</span>
+        <span class="rtab" data-rt="dispatch">汇考歌诀</span>
+        <span class="rtab" data-rt="renzi">认字测·81 字</span>
+        <span class="rtab" data-rt="zichu">字触·六卷</span>
+        <span class="rtab" data-rt="history">查字历史</span>
+      </div>
+      <input id="rule-search" type="text" placeholder="搜索规则库：输入字、法名或关键词…">
+      <div id="rule-body"></div>
+    </div>
+  </div>
+  <div id="side">
+    <div id="detail">
+      <div id="empty-hint">点击左侧条目查看详情。<br><br>测字法门：<br>· 装头/接脚/穿心/包笼/破解/添笔/减笔/对关/摘字（秘牒十法）<br>· 象形/会意/假借/谐声/指事/转注（心易六法）<br>· 取格断语（按部首归类）<br>· 时辰参考（后天时方六十甲子）<br><br>本引擎数据全部来自本地古籍文本与字库表，仅供文化研究。</div>
+    </div>
+  </div>
+</div>
+<script src="renderer/app.js"></script>
+</body>
+</html>
